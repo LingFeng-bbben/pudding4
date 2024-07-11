@@ -21,9 +21,10 @@ namespace pudding4
                 return;
             }
             CqWsSession session = new CqWsSession(options);
-
+            var random = new Random(DateTime.Now.Millisecond);
             await session.StartAsync();                               // 开始连接 (你也可以使用它的异步版本)
             Console.WriteLine("已启动");
+            //关键词
             session.UseGroupMessage(async (context, next) =>
             {
                 var text = context.Message.Text;
@@ -57,6 +58,49 @@ namespace pudding4
                 if (text.StartsWith("玩") && text.EndsWith("玩的"))
                     await session.SendGroupMessageAsync(context.GroupId, new CqMessage("活该"));
                 await next.Invoke();    // 执行下一个中间件
+            });
+            //dydy
+            session.UseGroupMessage(async (context, next) => {
+                var text = context.Message.Text;
+                if (text.StartsWith("#dydy-add"))
+                {
+                    var dycontent = text.Substring(9).Trim();
+                    if (File.Exists("dydy3.json"))
+                    {
+                        var dydys = JsonConvert.DeserializeObject<List<string>>(File.ReadAllText("dydy3.json"));
+                        if (dydys != null)
+                        {
+                            dydys.Add(dycontent);
+                            File.WriteAllText("dydy3.json", JsonConvert.SerializeObject(dydys));
+                        }
+                    }
+                    else
+                    {
+                        var dydys = new List<string>();
+                        dydys.Add(dycontent);
+                        File.WriteAllText("dydy3.json", JsonConvert.SerializeObject(dydys));
+                    }
+                    await session.SendGroupMessageAsync(context.GroupId, new CqMessage("已添加"));
+                }
+                else if (text.StartsWith("#dydy")){
+                    var dydys = JsonConvert.DeserializeObject<List<string>>(File.ReadAllText("dydy3.json"));
+                    var dy = dydys[random.Next(dydys.Count)];
+                    await session.SendGroupMessageAsync(context.GroupId, new CqMessage(dy));
+                }
+                await next.Invoke();
+            });
+            //jrrp
+            session.UseGroupMessage(async (context, next) => {
+                var text = context.Message.Text;
+                if (text.StartsWith("#jrrp"))
+                {
+                    var qid = context.Sender.UserId;
+                    Random random = new Random(System.DateTime.Today.DayOfYear + (int)qid);
+                    var rp = random.Next(0, 100);
+                    var message = CqMessage.FromCqCode(String.Format("[CQ:at,qq={0}] 的今日人品是{1}哟", qid, rp));
+                    await session.SendGroupMessageAsync(context.GroupId, message);
+                }
+                await next.Invoke();
             });
             Console.ReadLine();
         }
