@@ -7,6 +7,7 @@ namespace pudding4
 {
     internal class Program
     {
+        private static readonly HttpClient client = new HttpClient();
         static async Task Main(string[] args)
         {
             var options = new CqWsSessionOptions();
@@ -20,10 +21,36 @@ namespace pudding4
                 File.WriteAllText("settings.json", JsonConvert.SerializeObject(options));
                 return;
             }
+
+            var ollamaOpt = new Ollama.OllamaSettings();
+            if (File.Exists("ollama.json"))
+            {
+                ollamaOpt = JsonConvert.DeserializeObject<Ollama.OllamaSettings>(File.ReadAllText("ollama.json"));
+            }
+            else
+            {
+                Console.WriteLine("No ollama.json,creating one.");
+                File.WriteAllText("ollama.json", JsonConvert.SerializeObject(ollamaOpt));
+                return;
+            }
+
             CqWsSession session = new CqWsSession(options);
             var random = new Random(DateTime.Now.Millisecond);
             await session.StartAsync();                               // 开始连接 (你也可以使用它的异步版本)
             Console.WriteLine("已启动");
+            session.UseGroupMessage(async (context, next) => {
+                if (!context.RawMessage.StartsWith("[CQ:at,qq=2674713993]")){
+                    await next.Invoke();
+                    return;
+                }
+                var sendstr = JsonConvert.SerializeObject(new Ollama.OllamaSend(context.Message.Text.Trim(), ollamaOpt.systemMessage));
+                //Console.WriteLine($"Sending {sendstr}");
+                var response = await client.PostAsync(ollamaOpt.chatAddress,new StringContent(sendstr));
+                var recvstr = await response.Content.ReadAsStringAsync();
+                var recv = JsonConvert.DeserializeObject<Ollama.OllamaReply>(recvstr);
+                //Console.WriteLine(recv.Message.Content);
+                context.QuickOperation.Reply = new CqMessage(recv.Message.Content);
+            });
             //关键词
             session.UseGroupMessage(async (context, next) =>
             {
