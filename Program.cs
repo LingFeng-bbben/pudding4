@@ -38,6 +38,7 @@ namespace pudding4
             var random = new Random(DateTime.Now.Millisecond);
             await session.StartAsync();                               // 开始连接 (你也可以使用它的异步版本)
             Console.WriteLine("已启动");
+            //AI
             session.UseGroupMessage(async (context, next) => {
                 if (!context.RawMessage.StartsWith("[CQ:at,qq=2674713993]")){
                     await next.Invoke();
@@ -50,6 +51,23 @@ namespace pudding4
                 var recv = JsonConvert.DeserializeObject<Ollama.OllamaReply>(recvstr);
                 //Console.WriteLine(recv.Message.Content);
                 context.QuickOperation.Reply = new CqMessage(recv.Message.Content);
+            });
+            session.UseGroupMessage(async (context, next) => {
+                var text = context.Message.Text;
+                if (text.StartsWith("#csm"))
+                {
+                    var system = String.Format("现在的时间是{0}，考虑当前时间随机给出食物的建议。省去繁文缛节，只列出3个菜品。省去菜品描述，只返回菜品名称。", DateTime.Now.ToString("tt hh:mm"));
+                    var prompt = text.Length > 4 ? context.Message.Text.Substring(4).Trim() : "吃什么";
+                    var sendstr = JsonConvert.SerializeObject(new Ollama.OllamaSend(prompt, system, "qwen2:7b-instruct-q4_0", 1.3));
+                    //Console.WriteLine($"Sending {sendstr}");
+                    var response = await client.PostAsync(ollamaOpt.chatAddress, new StringContent(sendstr));
+                    var recvstr = await response.Content.ReadAsStringAsync();
+                    var recv = JsonConvert.DeserializeObject<Ollama.OllamaReply>(recvstr);
+                    //Console.WriteLine(recv.Message.Content);
+                    context.QuickOperation.Reply = new CqMessage(recv.Message.Content);
+                    return;
+                }
+                await next.Invoke();
             });
             //关键词
             session.UseGroupMessage(async (context, next) =>
@@ -88,10 +106,15 @@ namespace pudding4
             });
             //dydy
             session.UseGroupMessage(async (context, next) => {
-                var text = context.Message.Text;
+                var text = context.RawMessage;
                 if (text.StartsWith("#dydy-add"))
                 {
                     var dycontent = text.Substring(9).Trim();
+                    if (dycontent == "")
+                    {
+                        await session.SendGroupMessageAsync(context.GroupId, new CqMessage("空的加你吗呢"));
+                        return;
+                    }
                     if (File.Exists("dydy3.json"))
                     {
                         var dydys = JsonConvert.DeserializeObject<List<string>>(File.ReadAllText("dydy3.json"));
@@ -111,7 +134,7 @@ namespace pudding4
                 }
                 else if (text.StartsWith("#dydy")){
                     var dydys = JsonConvert.DeserializeObject<List<string>>(File.ReadAllText("dydy3.json"));
-                    var dy = dydys[random.Next(dydys.Count)];
+                    var dy = CqMessage.FromCqCode(dydys[random.Next(dydys.Count)]);
                     await session.SendGroupMessageAsync(context.GroupId, new CqMessage(dy));
                 }
                 await next.Invoke();
@@ -125,6 +148,22 @@ namespace pudding4
                     Random random = new Random(System.DateTime.Today.DayOfYear + (int)qid);
                     var rp = random.Next(0, 100);
                     var message = CqMessage.FromCqCode(String.Format("[CQ:at,qq={0}] 的今日人品是{1}哟", qid, rp));
+                    await session.SendGroupMessageAsync(context.GroupId, message);
+                }
+                await next.Invoke();
+            });
+            //rbdx
+            session.UseGroupMessage(async (context, next) => {
+                var text = context.Message.Text;
+                if (text.StartsWith("#rbdx"))
+                {
+                    var argument = "";
+                    if (text.Length > 5)
+                    {
+                        argument = text.Substring(6); 
+                    }
+                    var info = await Rbdx.GetRbdxSongs(argument);
+                    var message = CqMessage.FromCqCode(info);
                     await session.SendGroupMessageAsync(context.GroupId, message);
                 }
                 await next.Invoke();

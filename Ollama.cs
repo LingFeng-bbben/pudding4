@@ -86,19 +86,19 @@ namespace Ollama
         [JsonProperty("stream")]
         public bool Stream { get; set; }
 
-        public OllamaSend(string message,string system)
+        public OllamaSend(string message,string system,string model = "qwen2:1.5b",double temprature = 9999)
         {
-            Model = "qwen2:1.5b";
+            Model = model;
             Messages = new Message[] { new Message("system",system),new Message("user",message)};
             Stream = false;
-            Options = new Options() { Temperature = 9999 };
+            Options = new Options() { Temperature = temprature };
         }
     }
 
     public partial class Options
     {
         [JsonProperty("temperature")]
-        public long Temperature { get; set; }
+        public double Temperature { get; set; }
     }
 }
 
