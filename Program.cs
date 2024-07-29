@@ -2,12 +2,14 @@
 using EleCho.GoCqHttpSdk.Message;
 using Newtonsoft.Json;
 using static System.Net.Mime.MediaTypeNames;
+using rkllm_sharp;
 
 namespace pudding4
 {
     internal class Program
     {
         private static readonly HttpClient client = new HttpClient();
+        private static Rkllm? llm;
         static async Task Main(string[] args)
         {
             var options = new CqWsSessionOptions();
@@ -22,15 +24,15 @@ namespace pudding4
                 return;
             }
 
-            var ollamaOpt = new Ollama.OllamaSettings();
-            if (File.Exists("ollama.json"))
+            var llmOpt = new LLMsetting();
+            if (File.Exists("llm.json"))
             {
-                ollamaOpt = JsonConvert.DeserializeObject<Ollama.OllamaSettings>(File.ReadAllText("ollama.json"));
+                llmOpt = JsonConvert.DeserializeObject<LLMsetting>(File.ReadAllText("llm.json"));
             }
             else
             {
                 Console.WriteLine("No ollama.json,creating one.");
-                File.WriteAllText("ollama.json", JsonConvert.SerializeObject(ollamaOpt));
+                File.WriteAllText("llm.json", JsonConvert.SerializeObject(llmOpt));
                 return;
             }
 
@@ -39,36 +41,24 @@ namespace pudding4
             await session.StartAsync();                               // 开始连接 (你也可以使用它的异步版本)
             Console.WriteLine("已启动");
             //AI
-            session.UseGroupMessage(async (context, next) => {
-                if (!context.RawMessage.StartsWith("[CQ:at,qq=2674713993]")){
+            if (System.Environment.OSVersion.Platform == PlatformID.Unix)
+            {
+                Console.WriteLine("Init RKLLM");
+                llm = new Rkllm(llmOpt.ModelPath, llmOpt.RKLLMsetting);
+                session.UseGroupMessage(async (context, next) =>
+                {
+                    if (context.RawMessage.StartsWith("[CQ:at,qq=2674713993]") || context.Message.Text.Contains("布丁"))
+                    {
+                        var sendstr = String.Format(llmOpt.PromptTemplate, llmOpt.SystemPrompt, context.Message.Text);
+                        //Console.WriteLine($"Sending {sendstr}");
+                        var recvstr = await llm.RunAsync(sendstr);
+                        context.QuickOperation.Reply = new CqMessage(recvstr);
+                        return;
+                    }
                     await next.Invoke();
                     return;
-                }
-                var sendstr = JsonConvert.SerializeObject(new Ollama.OllamaSend(context.Message.Text.Trim(), ollamaOpt.systemMessage));
-                //Console.WriteLine($"Sending {sendstr}");
-                var response = await client.PostAsync(ollamaOpt.chatAddress,new StringContent(sendstr));
-                var recvstr = await response.Content.ReadAsStringAsync();
-                var recv = JsonConvert.DeserializeObject<Ollama.OllamaReply>(recvstr);
-                //Console.WriteLine(recv.Message.Content);
-                context.QuickOperation.Reply = new CqMessage(recv.Message.Content);
-            });
-            session.UseGroupMessage(async (context, next) => {
-                var text = context.Message.Text;
-                if (text.StartsWith("#csm"))
-                {
-                    var system = String.Format("现在的时间是{0}，考虑当前时间随机给出食物的建议。省去繁文缛节，只列出3个菜品。省去菜品描述，只返回菜品名称。", DateTime.Now.ToString("tt hh:mm"));
-                    var prompt = text.Length > 4 ? context.Message.Text.Substring(4).Trim() : "吃什么";
-                    var sendstr = JsonConvert.SerializeObject(new Ollama.OllamaSend(prompt, system, "qwen2:7b-instruct-q4_0", 1.3));
-                    //Console.WriteLine($"Sending {sendstr}");
-                    var response = await client.PostAsync(ollamaOpt.chatAddress, new StringContent(sendstr));
-                    var recvstr = await response.Content.ReadAsStringAsync();
-                    var recv = JsonConvert.DeserializeObject<Ollama.OllamaReply>(recvstr);
-                    //Console.WriteLine(recv.Message.Content);
-                    context.QuickOperation.Reply = new CqMessage(recv.Message.Content);
-                    return;
-                }
-                await next.Invoke();
-            });
+                });
+            }
             //关键词
             session.UseGroupMessage(async (context, next) =>
             {
