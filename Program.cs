@@ -3,6 +3,7 @@ using EleCho.GoCqHttpSdk.Message;
 using Newtonsoft.Json;
 using static System.Net.Mime.MediaTypeNames;
 using rkllm_sharp;
+using System.Collections.Generic;
 
 namespace pudding4
 {
@@ -155,6 +156,20 @@ namespace pudding4
                     var info = await Rbdx.GetRbdxSongs(argument);
                     var message = CqMessage.FromCqCode(info);
                     await session.SendGroupMessageAsync(context.GroupId, message);
+                }
+                await next.Invoke();
+            });
+            session.UseGroupMessage(async (context, next) => {
+                var text = context.Message.Text.ToLower();
+                if (text.StartsWith("随机谱面"))
+                {
+                    var message = await MajNet.GetRandomSong();
+                    await session.SendGroupMessageAsync(context.GroupId, CqMessage.FromCqCode(message));
+                }
+                if (text.StartsWith("随机mmfc"))
+                {
+                    var message = await MajNet.GetRandomSong(true);
+                    await session.SendGroupMessageAsync(context.GroupId, CqMessage.FromCqCode(message));
                 }
                 await next.Invoke();
             });
