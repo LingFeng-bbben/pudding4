@@ -52,7 +52,7 @@ namespace pudding4
                         var sendstr = String.Format(llmOpt.PromptTemplate, llmOpt.SystemPrompt, context.Message.Text);
                         //Console.WriteLine($"Sending {sendstr}");
                         var recvstr = await llm.RunAsync(sendstr);
-                        context.QuickOperation.Reply = new CqMessage(recvstr);
+                        await session.SendGroupMessageAsync(context.GroupId, new CqMessage(recvstr));
                         return;
                     }
                     await next.Invoke();
