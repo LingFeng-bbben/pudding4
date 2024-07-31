@@ -12,7 +12,6 @@ namespace pudding4
     {
         private static readonly HttpClient client = new HttpClient();
         private static Rkllm? llm;
-        private static bool isDuicheng = false;
         static async Task Main(string[] args)
         {
             var options = new CqWsSessionOptions();
@@ -165,6 +164,7 @@ namespace pudding4
                 }
                 await next.Invoke();
             });
+            //mmfc
             session.UseGroupMessage(async (context, next) => {
                 var text = context.Message.Text.ToLower();
                 if (text.StartsWith("随机谱面"))
@@ -177,8 +177,14 @@ namespace pudding4
                     var message = await MajNet.GetRandomSong(true);
                     await session.SendGroupMessageAsync(context.GroupId, CqMessage.FromCqCode(message));
                 }
+                if (text.StartsWith("随机评论"))
+                {
+                    var message = await MajNet.GetRandomComment();
+                    await session.SendGroupMessageAsync(context.GroupId, CqMessage.FromCqCode(message));
+                }
                 await next.Invoke();
             });
+            //mirror
             session.UseGroupMessage(async (context, next) =>
             {
 
@@ -188,12 +194,6 @@ namespace pudding4
                     {
                         if (context.Message.Text.Contains("对称"))
                         {
-                            if (isDuicheng)
-                            {
-                                await session.SendGroupMessageAsync(context.GroupId, new CqMessage("别急"));
-                                return;
-                            }
-                            isDuicheng = true;
                             Task.Run(async () => {
                                 var orig = (CqReplyMsg)context.Message.First();
                                 var replyorig = (CqImageMsg)session.GetMessage((long)orig.Id).Message.First();
@@ -274,9 +274,9 @@ namespace pudding4
                                     File.Delete(outname);
                                     File.Delete(filename);
                                     Console.WriteLine("ok");
-                                    isDuicheng = false;
                                 }
                             });
+                            return;
                         }
                     }
                     catch (Exception ex)
@@ -285,7 +285,6 @@ namespace pudding4
                         Console.WriteLine(ex.Message);
                         Console.WriteLine(ex.StackTrace);
                         await session.SendGroupMessageAsync(context.GroupId, new CqMessage("出错了哟"));
-                        isDuicheng = false;
                     }
                 }
                 //

@@ -59,6 +59,18 @@ namespace pudding4
                 ;
             return message;
         }
+
+        public static async Task<string> GetRandomComment()
+        {
+            var comms = await DownloadObject<Dictionary<string, List<string>>>("https://www.maimaimfc.ink/_functions/comments");
+            var commids = comms.Keys.ToList();
+            var comminner = comms.Values.ToList();
+            var rand  = random.Next(0, commids.Count);
+            var randcoom = random.Next(0, comminner[rand].Count);
+            var comment = comminner[rand][randcoom];
+            var ret = String.Format("给{0}号的评论:\n{1}", commids[rand], comment);
+            return ret;
+        }
     }
 
 }
