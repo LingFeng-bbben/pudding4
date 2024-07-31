@@ -12,6 +12,7 @@ namespace pudding4
     {
         private static readonly HttpClient client = new HttpClient();
         private static Rkllm? llm;
+        private static bool isDuicheng = false;
         static async Task Main(string[] args)
         {
             var options = new CqWsSessionOptions();
@@ -53,8 +54,12 @@ namespace pudding4
                     {
                         var sendstr = String.Format(llmOpt.PromptTemplate, llmOpt.SystemPrompt, context.Message.Text);
                         //Console.WriteLine($"Sending {sendstr}");
-                        var recvstr = await llm.RunAsync(sendstr);
-                        await session.SendGroupMessageAsync(context.GroupId, new CqMessage(recvstr));
+                        Task.Run(async () =>
+                        {
+                            var recvstr = await llm.RunAsync(sendstr);
+                            await session.SendGroupMessageAsync(context.GroupId, new CqMessage(recvstr));
+                        });
+                        
                         return;
                     }
                     await next.Invoke();
@@ -174,102 +179,118 @@ namespace pudding4
                 }
                 await next.Invoke();
             });
-            /*session.UseGroupMessage(async (context, next) => {
-               
-                if(context.Message.First().MsgType == "reply")
+            session.UseGroupMessage(async (context, next) =>
+            {
+
+                if (context.Message.First().MsgType == "reply")
                 {
                     try
                     {
                         if (context.Message.Text.Contains("对称"))
                         {
-                            var orig = (CqReplyMsg)context.Message.First();
-                            var replyorig = (CqImageMsg)session.GetMessage((long)orig.Id).Message.First();
-                            var imgurl = replyorig.Url;
-                            HttpClient Client = new HttpClient();
-                            Console.WriteLine("Getting Image");
-                            var resp = await Client.SendAsync(new HttpRequestMessage(HttpMethod.Get, imgurl));
-                            if (resp.StatusCode != System.Net.HttpStatusCode.OK) return;
-                            var contType = resp.Content.Headers.GetValues("Content-Type").First();
-                            var filename = Guid.NewGuid().ToString();
-                            var outname = filename + "_out";
-                            if (contType == "image/jpeg") {
-                                filename += ".jpg";
-                                outname += ".jpg";
-                            }
-                            else if (contType == "image/png")
+                            if (isDuicheng)
                             {
-                                filename += ".png";
-                                outname += ".png";
-                            }
-                            else if (contType == "image/gif")
-                            {
-                                filename += ".gif";
-                                outname += ".gif";
-                            }
-                            else
-                            {
+                                await session.SendGroupMessageAsync(context.GroupId, new CqMessage("别急"));
                                 return;
                             }
-                            Console.WriteLine("Saving");
-                            var file = await resp.Content.ReadAsByteArrayAsync();
-                            File.WriteAllBytes(filename, file);
-                            var command = "";
-                            if (context.Message.Text.Contains("右"))
-                            {
-                                command = String.Format(
-                                    "-i {0} -vf \"[0:v]split[a][b];[a]crop=x=in_w/2:w=in_w/2[a1];[b]crop=x=in_w/2:w=in_w/2[b1];[b1]hflip[b2];[b2][a1]hstack\" {1}",
-                                    filename, outname);
-                            }else if (context.Message.Text.Contains("上"))
-                            {
-                                command = String.Format(
-                                    "-i {0} -vf \"[0:v]split[a][b];[a]crop=y=0:h=in_h/2[a1];[b]crop=y=0:h=in_h/2[b1];[b1]vflip[b2];[a1][b2]vstack\" {1}",
-                                    filename, outname);
-                            }
-                            else if (context.Message.Text.Contains("下"))
-                            {
-                                command = String.Format(
-                                    "-i {0} -vf \"[0:v]split[a][b];[a]crop=y=in_h/2:h=in_h/2[a1];[b]crop=y=in_h/2:h=in_h/2[b1];[b1]vflip[b2];[b2][a1]vstack\" {1}",
-                                    filename, outname);
-                            }
-                            else
-                            {
-                                command = String.Format(
-                                    "-i {0} -vf \"[0:v]split[a][b];[a]crop=x=0:w=in_w/2[a1];[b]crop=x=0:w=in_w/2[b1];[b1]hflip[b2];[a1][b2]hstack\" {1}",
-                                    filename, outname);
-                            }
-                            var startInfo = new ProcessStartInfo()
-                            {
-                                FileName = "ffmpeg",
-                                Arguments = command,
-                                WorkingDirectory = Environment.CurrentDirectory,
-                            };
-                            Console.WriteLine("Run ffmpeg");
-                            var proc = Process.Start(startInfo);
-                            await Task.Run(()=>proc.WaitForExit(2000));
-                            if(File.Exists(outname))
-                            {
-                                Console.WriteLine("Upload");
-                                var outinfo = new FileInfo(outname);
-                                var imgmsg = CqImageMsg.FromBytes(File.ReadAllBytes(outinfo.FullName));
-                                await session.SendGroupMessageAsync(context.GroupId, new CqMessage(imgmsg));
-                                Console.WriteLine("Del image");
-                                File.Delete(outname);
-                                File.Delete(filename);
-                                Console.WriteLine("ok");
-                            }
+                            isDuicheng = true;
+                            Task.Run(async () => {
+                                var orig = (CqReplyMsg)context.Message.First();
+                                var replyorig = (CqImageMsg)session.GetMessage((long)orig.Id).Message.First();
+                                var imgurl = replyorig.Url;
+                                HttpClient Client = new HttpClient();
+                                Console.WriteLine("Getting Image");
+                                Client.DefaultRequestHeaders.Add("Accept", "*/*");
+                                var cancel = new CancellationTokenSource();
+                                cancel.CancelAfter(5000);
+                                var resp = await Client.SendAsync(new HttpRequestMessage(HttpMethod.Get, imgurl), cancel.Token);
+                                if (resp.StatusCode != System.Net.HttpStatusCode.OK) return;
+                                var contType = resp.Content.Headers.GetValues("Content-Type").First();
+                                var filename = Guid.NewGuid().ToString();
+                                var outname = filename + "_out";
+                                if (contType == "image/jpeg")
+                                {
+                                    filename += ".jpg";
+                                    outname += ".jpg";
+                                }
+                                else if (contType == "image/png")
+                                {
+                                    filename += ".png";
+                                    outname += ".png";
+                                }
+                                else if (contType == "image/gif")
+                                {
+                                    filename += ".gif";
+                                    outname += ".gif";
+                                }
+                                else
+                                {
+                                    return;
+                                }
+                                Console.WriteLine("Saving");
+                                var file = await resp.Content.ReadAsByteArrayAsync();
+                                File.WriteAllBytes(filename, file);
+                                var command = "";
+                                if (context.Message.Text.Contains("右"))
+                                {
+                                    command = String.Format(
+                                        "-i {0} -vf \"[0:v]split[a][b];[a]crop=x=in_w/2:w=in_w/2[a1];[b]crop=x=in_w/2:w=in_w/2[b1];[b1]hflip[b2];[b2][a1]hstack\" {1}",
+                                        filename, outname);
+                                }
+                                else if (context.Message.Text.Contains("上"))
+                                {
+                                    command = String.Format(
+                                        "-i {0} -vf \"[0:v]split[a][b];[a]crop=y=0:h=in_h/2[a1];[b]crop=y=0:h=in_h/2[b1];[b1]vflip[b2];[a1][b2]vstack\" {1}",
+                                        filename, outname);
+                                }
+                                else if (context.Message.Text.Contains("下"))
+                                {
+                                    command = String.Format(
+                                        "-i {0} -vf \"[0:v]split[a][b];[a]crop=y=in_h/2:h=in_h/2[a1];[b]crop=y=in_h/2:h=in_h/2[b1];[b1]vflip[b2];[b2][a1]vstack\" {1}",
+                                        filename, outname);
+                                }
+                                else
+                                {
+                                    command = String.Format(
+                                        "-i {0} -vf \"[0:v]split[a][b];[a]crop=x=0:w=in_w/2[a1];[b]crop=x=0:w=in_w/2[b1];[b1]hflip[b2];[a1][b2]hstack\" {1}",
+                                        filename, outname);
+                                }
+                                var startInfo = new ProcessStartInfo()
+                                {
+                                    FileName = "ffmpeg",
+                                    Arguments = command,
+                                    WorkingDirectory = Environment.CurrentDirectory,
+                                };
+                                Console.WriteLine("Run ffmpeg");
+                                var proc = Process.Start(startInfo);
+                                await Task.Run(() => proc.WaitForExit(2000));
+                                if (File.Exists(outname))
+                                {
+                                    Console.WriteLine("Upload");
+                                    var outinfo = new FileInfo(outname);
+                                    var imgmsg = CqImageMsg.FromFile(outinfo.FullName);
+                                    await session.SendGroupMessageAsync(context.GroupId, new CqMessage(imgmsg));
+                                    Console.WriteLine("Del image");
+                                    File.Delete(outname);
+                                    File.Delete(filename);
+                                    Console.WriteLine("ok");
+                                    isDuicheng = false;
+                                }
+                            });
                         }
                     }
-                    catch (Exception ex) 
+                    catch (Exception ex)
                     {
                         Console.WriteLine(ex.ToString());
                         Console.WriteLine(ex.Message);
                         Console.WriteLine(ex.StackTrace);
                         await session.SendGroupMessageAsync(context.GroupId, new CqMessage("出错了哟"));
+                        isDuicheng = false;
                     }
                 }
                 //
                 await next.Invoke();
-            });*/
+            });
             Console.ReadLine();
         }
     }
