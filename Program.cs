@@ -5,6 +5,7 @@ using static System.Net.Mime.MediaTypeNames;
 using rkllm_sharp;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Timers;
 
 namespace pudding4
 {
@@ -39,10 +40,18 @@ namespace pudding4
                 return;
             }
 
+            var result = await BiliSearch.Get(new BiliSearchSettings());
+
             CqWsSession session = new CqWsSession(options);
             var random = new Random(DateTime.Now.Millisecond);
             await session.StartAsync();                               // 开始连接 (你也可以使用它的异步版本)
             Console.WriteLine("已启动");
+
+            /*System.Timers.Timer biliMonitor = new();
+            biliMonitor.Interval = 6000000;
+            biliMonitor.Elapsed += (object? sender, ElapsedEventArgs e) => { };
+            biliMonitor.Start();*/
+
             //AI
             if (System.Environment.OSVersion.Platform == PlatformID.Unix)
             {
