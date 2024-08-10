@@ -14,6 +14,7 @@ namespace pudding4
         private static readonly HttpClient client = new HttpClient();
         private static Rkllm? llm;
         private static bool isllmrunning = false;
+        private static List<BiliResult> lastResult = new List<BiliResult>();
         static async Task Main(string[] args)
         {
             var options = new CqWsSessionOptions();
@@ -40,17 +41,53 @@ namespace pudding4
                 return;
             }
 
-            var result = await BiliSearch.Get(new BiliSearchSettings());
+            
+
 
             CqWsSession session = new CqWsSession(options);
             var random = new Random(DateTime.Now.Millisecond);
             await session.StartAsync();                               // 开始连接 (你也可以使用它的异步版本)
             Console.WriteLine("已启动");
 
-            /*System.Timers.Timer biliMonitor = new();
-            biliMonitor.Interval = 6000000;
-            biliMonitor.Elapsed += (object? sender, ElapsedEventArgs e) => { };
-            biliMonitor.Start();*/
+            System.Timers.Timer biliMonitor = new();
+            biliMonitor.Interval = 60000;
+            biliMonitor.Elapsed += async (object? sender, ElapsedEventArgs e) => {
+                var searchParam = new BiliSearchSettings();
+                searchParam.KeyWord = "maimai自制";
+                try
+                {
+                    var result = (await BiliSearch.Get(searchParam)).Data.Result;
+                    //Console.WriteLine(result.Data.Result.First().Title);
+                    foreach (var item in result)
+                    {
+                        if (lastResult.Any(o => o.Title == item.Title))
+                        {
+                            continue;
+                        }
+                        else
+                        {
+                            var uploadTime = DateTimeOffset.FromUnixTimeSeconds(item.Senddate).ToLocalTime().DateTime;
+                            if ((DateTime.Now - uploadTime).TotalSeconds < 60)
+                            {
+                                var message = String.Format("关于{0}的新视频哟！\n" +
+                                    "[CQ:image,file=http:{1},subType=1]{2}\nUP:{3}\nhttps://www.bilibili.com/video/{4}",
+                                    searchParam.KeyWord, item.Pic, item.Title, item.Author, item.Bvid)
+                                .Replace("<em class=\"keyword\">", "").Replace("</em>", "");
+                                Console.WriteLine(message);
+                                await session.SendGroupMessageAsync(271274164, CqMessage.FromCqCode(message));
+                            }
+
+                        }
+                    }
+                    lastResult = result;
+                }
+                catch(Exception ex)
+                {
+                    Console.WriteLine(ex.ToString());
+                }
+                
+            };
+            biliMonitor.Start();
 
             //AI
             if (System.Environment.OSVersion.Platform == PlatformID.Unix)

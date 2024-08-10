@@ -12,7 +12,7 @@ namespace pudding4
 {
     public class BiliSearchSettings
     {
-        public string KeyWord = "舞萌";
+        public string KeyWord = "原神";
     }
 
     public partial class BiliSearch
@@ -29,16 +29,32 @@ namespace pudding4
         [JsonProperty("data")]
         public BiliData Data { get; set; }
 
+        private static CookieContainer _cookieContainer = new CookieContainer();
+        private static HttpClient _httpClient = new HttpClient(
+            new HttpClientHandler()
+            {
+                AllowAutoRedirect = true,
+                UseCookies = true,
+                CookieContainer = _cookieContainer,
+            }
+            );
+
         public static async Task<BiliSearch> Get(BiliSearchSettings searchSettings)
         {
-            BiliContentGetter._httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36");
-            var home_result = await BiliContentGetter._httpClient.GetAsync(new Uri("https://bilibili.com"));
-            Console.WriteLine(await home_result.Content.ReadAsStringAsync());
+            Console.WriteLine("Searching Video for " + searchSettings.KeyWord);
+            _httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36");
+            var home_result = await _httpClient.GetAsync(new Uri("https://bilibili.com"));
+            //Console.WriteLine(await home_result.Content.ReadAsStringAsync());
             string url = "https://api.bilibili.com/x/web-interface/wbi/search/type?";
             var (imgKey, subKey) = await BiliContentGetter.GetWbiKeys();
             var par = new Dictionary<string, string>
                 {
                 { "search_type", "video" },
+                { "order", "pubdate" },
+                { "page", "1" },
+                { "page_size", "10" },
+                { "platform","pc"},
+                { "highlight","0"},
                 { "keyword", searchSettings.KeyWord },
                 };
             Dictionary<string, string> signedParams = BiliContentGetter.EncWbi(
@@ -48,24 +64,15 @@ namespace pudding4
             );
             string query = await new FormUrlEncodedContent(signedParams).ReadAsStringAsync();
             url += query;
-            Console.WriteLine( url );
-            var resp = await BiliContentGetter._httpClient.GetAsync(new Uri(url));
-            Console.WriteLine( await resp.Content.ReadAsStringAsync() );
-            return new BiliSearch();
+            Console.WriteLine( "Get Webapi" );
+            var resp = await _httpClient.GetAsync(new Uri(url));
+            var json =  await resp.Content.ReadAsStringAsync() ;
+            return JsonConvert.DeserializeObject<BiliSearch>(json);
         }
     }
 
     public class BiliContentGetter
     {
-        private static CookieContainer _cookieContainer = new CookieContainer();
-        public static HttpClient _httpClient = new HttpClient(
-            new HttpClientHandler()
-            {
-                AllowAutoRedirect = true,
-                UseCookies = true,
-                CookieContainer = _cookieContainer,
-            }
-            );
         
 
         private static readonly int[] MixinKeyEncTab =
@@ -231,5 +238,6 @@ namespace pudding4
 
         [JsonProperty("danmaku")]
         public long Danmaku { get; set; }
+
     }
 }
