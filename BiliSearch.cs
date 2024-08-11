@@ -43,7 +43,16 @@ namespace pudding4
         {
             Console.WriteLine("Searching Video for " + searchSettings.KeyWord);
             _httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36");
-            var home_result = await _httpClient.GetAsync(new Uri("https://bilibili.com"));
+            var cookies = _cookieContainer.GetCookies(new Uri("https://bilibili.com"));
+            if (cookies == null || cookies.Count==0 || cookies.First().Expired)
+            {
+                Console.WriteLine("Cookie Null or Expired, getting new one");
+                var home_result = await _httpClient.GetAsync(new Uri("https://bilibili.com"));
+            }
+            else
+            {
+                Console.WriteLine("Already have cookie, skip homepage");
+            }
             //Console.WriteLine(await home_result.Content.ReadAsStringAsync());
             string url = "https://api.bilibili.com/x/web-interface/wbi/search/type?";
             var (imgKey, subKey) = await BiliContentGetter.GetWbiKeys();
@@ -67,6 +76,7 @@ namespace pudding4
             Console.WriteLine( "Get Webapi" );
             var resp = await _httpClient.GetAsync(new Uri(url));
             var json =  await resp.Content.ReadAsStringAsync() ;
+            Console.WriteLine("OK.." + json.Substring(0,50));
             return JsonConvert.DeserializeObject<BiliSearch>(json);
         }
     }

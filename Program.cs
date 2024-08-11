@@ -50,7 +50,7 @@ namespace pudding4
             Console.WriteLine("已启动");
 
             System.Timers.Timer biliMonitor = new();
-            biliMonitor.Interval = 60000;
+            biliMonitor.Interval = 600000;
             biliMonitor.Elapsed += async (object? sender, ElapsedEventArgs e) => {
                 var searchParam = new BiliSearchSettings();
                 searchParam.KeyWord = "maimai自制";
@@ -67,7 +67,7 @@ namespace pudding4
                         else
                         {
                             var uploadTime = DateTimeOffset.FromUnixTimeSeconds(item.Senddate).ToLocalTime().DateTime;
-                            if ((DateTime.Now - uploadTime).TotalSeconds < 60)
+                            if ((DateTime.Now - uploadTime).TotalSeconds < 600)
                             {
                                 var message = String.Format("关于{0}的新视频哟！\n" +
                                     "[CQ:image,file=http:{1},subType=1]{2}\nUP:{3}\nhttps://www.bilibili.com/video/{4}",
