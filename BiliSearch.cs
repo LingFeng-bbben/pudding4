@@ -44,7 +44,7 @@ namespace pudding4
             Console.WriteLine("Searching Video for " + searchSettings.KeyWord);
             _httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36");
             var cookies = _cookieContainer.GetCookies(new Uri("https://bilibili.com"));
-            if (cookies == null || cookies.Count==0 || cookies.First().Expired)
+            if (cookies == null || cookies.Count==0 || cookies.Any(o=>o.Expired))
             {
                 Console.WriteLine("Cookie Null or Expired, getting new one");
                 var home_result = await _httpClient.GetAsync(new Uri("https://bilibili.com"));

@@ -123,7 +123,9 @@ namespace pudding4
                 var text = context.Message.Text;
                 if (text.Contains("njmlp"))
                     await session.SendGroupMessageAsync(context.GroupId, new CqMessage("にじゃまれぴ！"));
-                if (text.Contains("🍮"))
+                if (text.Contains("尖尖"))
+                    await session.SendGroupMessageAsync(context.GroupId, new CqMessage("那我问你"));
+                /*if (text.Contains("🍮"))
                 {
                     if (text.Contains("💩"))
                         await session.SendGroupMessageAsync(context.GroupId, new CqMessage("味道有点怪哟"));
@@ -149,7 +151,7 @@ namespace pudding4
                 if (text.Contains("入院") || text.Contains("出院"))
                     await session.SendGroupMessageAsync(context.GroupId, new CqMessage("已批准"));
                 if (text.StartsWith("玩") && text.EndsWith("玩的"))
-                    await session.SendGroupMessageAsync(context.GroupId, new CqMessage("活该"));
+                    await session.SendGroupMessageAsync(context.GroupId, new CqMessage("活该"));*/
                 await next.Invoke();    // 执行下一个中间件
             });
             //dydy
