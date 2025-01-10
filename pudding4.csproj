@@ -10,7 +10,7 @@
   <ItemGroup>
     <PackageReference Include="EleCho.GoCqHttpSdk" Version="1.2.5" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="rkllm-sharp" Version="1.0.1" />
+    <PackageReference Include="rkllm-sharp" Version="1.0.2" />
   </ItemGroup>
 
 </Project>
